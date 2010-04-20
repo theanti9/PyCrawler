@@ -3,10 +3,13 @@ import re
 import urllib2
 import urlparse
 import threading
-import psyco
-from pysqlite2 import dbapi2 as sqlite
+import sqlite3 as sqlite
+try:
+	import psyco
+	psyco.full()
+except ImportError:
+	pass
 
-psyco.full()
 connection = sqlite.connect('crawl.db')
 cursor = connection.cursor()
 cursor.execute('CREATE TABLE IF NOT EXISTS crawl_index ( url VARCHAR(256) PRIMARY KEY, title VARCHAR(256), keywords VARCHAR(256) )')
