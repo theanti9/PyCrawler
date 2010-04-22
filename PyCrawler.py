@@ -15,9 +15,17 @@ cursor = connection.cursor()
 cursor.execute('CREATE TABLE IF NOT EXISTS crawl_index ( url VARCHAR(256) PRIMARY KEY, title VARCHAR(256), keywords VARCHAR(256) )')
 cursor.execute('CREATE TABLE IF NOT EXISTS queue ( url VARCHAR(256) PRIMARY KEY )')
 connection.commit()
+
+if len(argv) < 2:
+	print "No starting point! Checking existing queue"
+	cursor.execute("SELECT * FROM queue LIMIT 1")
+	c = cursor.fetchone()
+	if c == None:
+		sys.exit("ERROR: No start point! Exiting")
 try:
-	cursor.execute("INSERT INTO queue VALUES ( (?) )", (sys.argv[1], ))
-	connection.commit()
+	if sys.argv[1]:
+		cursor.execute("INSERT INTO queue VALUES ( (?) )", (sys.argv[1], ))
+		connection.commit()
 except:
 	pass
 keywordregex = re.compile('<meta\sname=["\']keywords["\']\scontent=["\'](.*?)["\']\s/>')
