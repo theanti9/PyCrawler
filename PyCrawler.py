@@ -26,18 +26,18 @@ crawled = []
 class threader ( threading.Thread ):
 	def run(self):
 		while 1:
-			crawl()
+			try:
+				cursor.execute("SELECT * FROM queue LIMIT 1")
+				crawling = cursor.fetchone()
+				crawling = crawling[0]
+				cursor.execute("DELETE FROM queue WHERE url = (?)", (crawling, ))
+				connection.commit()
+				print crawling
+			except KeyError:
+				raise StopIteration
+			self.crawl(crawling)
 			
-	def crawl():
-		try:
-			cursor.execute("SELECT * FROM queue LIMIT 1")
-			crawling = cursor.fetchone()
-			crawling = crawling[0]
-			cursor.execute("DELETE FROM queue WHERE url = (?)", (crawling, ))
-			connection.commit()
-			print crawling
-		except KeyError:
-			raise StopIteration
+	def crawl(self, crawling):
 		url = urlparse.urlparse(crawling)
 		try:
 			crawled.append(crawling)
@@ -46,7 +46,7 @@ class threader ( threading.Thread ):
 		try:
 			response = urllib2.urlopen(crawling)
 		except:
-			continue
+			return
 		msg = response.read()
 		startPos = msg.find('<title>')
 		if startPos != -1:
@@ -79,6 +79,6 @@ class threader ( threading.Thread ):
 			cursor.execute("INSERT INTO crawl_index VALUES( (?), (?), (?) )", (crawling, title, keywordlist))
 			connection.commit()
 		except:
-			continue
+			pass
 if __name__ == '__main__':
 	threader().run()
