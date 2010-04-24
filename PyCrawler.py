@@ -4,6 +4,7 @@ import urllib2
 import urlparse
 import threading
 import sqlite3 as sqlite
+from BeautifulSoup import BeautifulSoup
 # Try to import psyco for JIT compilation
 try:
 	import psyco
@@ -73,13 +74,32 @@ class threader ( threading.Thread ):
 			return
 		# Read response
 		msg = response.read()
+		
+		# Create the BS object for parsing the doc
+		soup = BeautifulSoup(msg)
+		# find the title
+		title = soup.find('title' limit=1)
 		# Find the title of the page
-		startPos = msg.find('<title>')
-		if startPos != -1:
-			endPos = msg.find('</title>', startPos+7)
-			if endPos != -1:
-				title = msg[startPos+7:endPos]
+		#startPos = msg.find('<title>')
+		#if startPos != -1:
+		#	endPos = msg.find('</title>', startPos+7)
+		#	if endPos != -1:
+		#		title = msg[startPos+7:endPos]
 		# Get the keywords
+		
+		# Find the meta keywords tag
+		#metalist = soup.findall("meta")
+		#keywordsmeta = None
+		# search through all the meta tags for the keywords tag
+		#for meta in metalist:
+			# if "keywords" is in the string
+		#	if meta.find("keywords") != -1:
+		#		keywordsmeta = meta
+		#		break
+		#if keywordsmeta != None:
+		#	bs = BeautifulSoup(keywordsmeta)
+		#	bs.find(text=re.compile('content\=[\'|"].*?[\'|"]'))
+			
 		keywordlist = keywordregex.findall(msg)
 		if len(keywordlist) > 0:
 			keywordlist = keywordlist[0]
