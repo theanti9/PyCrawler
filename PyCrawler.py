@@ -4,7 +4,6 @@ import urllib2
 import urlparse
 import threading
 import sqlite3 as sqlite
-from BeautifulSoup import BeautifulSoup
 # Try to import psyco for JIT compilation
 try:
 	import psyco
@@ -25,14 +24,14 @@ if len(sys.argv) < 4:
 else:
 	dbname = sys.argv[1]
 	starturl = sys.argv[2]
-	crawldepth = sys.argv[3]
+	crawldepth = int(sys.argv[3])
 
 
 # Connect to the db and create the tables if they don't already exist
-connection = sqlite.connect(db)
+connection = sqlite.connect(dbname)
 cursor = connection.cursor()
 cursor.execute('CREATE TABLE IF NOT EXISTS crawl_index (id INTEGER, parent INTEGER, url VARCHAR(256), title VARCHAR(256), keywords VARCHAR(256) )')
-cursor.execute('CREATE TABLE IF NOT EXISTS queue (id INTEGER PRIMARY KEY, parent INTEGER, depth INTEGER, url VARCHAR(256) PRIMARY KEY )')
+cursor.execute('CREATE TABLE IF NOT EXISTS queue (id INTEGER PRIMARY KEY, parent INTEGER, depth INTEGER, url VARCHAR(256))')
 cursor.execute('CREATE TABLE IF NOT EXISTS status ( s INTEGER, t TEXT )')
 connection.commit()
 
@@ -60,7 +59,7 @@ crawled = []
 
 # set crawling status and stick starting url into the queue
 cursor.execute("INSERT INTO status VALUES ((?), (?))", (1, "datetime('now')"))
-cursor.execute("INSERT INTO queue VALUES ((?), (?), (?))", (None, 0, 0, staturl))
+cursor.execute("INSERT INTO queue VALUES ((?), (?), (?), (?))", (None, 0, 0, starturl))
 connection.commit()
 
 
@@ -80,6 +79,8 @@ class threader ( threading.Thread ):
 				print crawling
 			except KeyError:
 				raise StopIteration
+			except:
+				pass
 			
 			# if theres nothing in the que, then set the status to done and exit
 			if crawling == None:
@@ -116,10 +117,11 @@ class threader ( threading.Thread ):
 		# Read response
 		msg = response.read()
 		
-		# Create the BS object for parsing the doc
-		soup = BeautifulSoup(msg)
-		# find the title
-		title = soup.find('title' limit=1)
+		startPos = msg.find('<title>')
+		if startPos != -1:
+			endPos = msg.find('</title>', startPos+7)
+			if endPos != -1:
+				title = msg[startPos+7:endPos]
 			
 		keywordlist = keywordregex.findall(msg)
 		if len(keywordlist) > 0:
@@ -128,11 +130,8 @@ class threader ( threading.Thread ):
 			keywordlist = ""
 		# Get the links
 		links = linkregex.findall(msg)
-		title.replace("'", "\'")
-		keywordlist.replace("'", "\'")
-
 		# queue up the links
-		queue_links(links, cid, curdepth)
+		self.queue_links(url, links, cid, curdepth)
 
 		try:
 			# Put now crawled link into the db
@@ -140,7 +139,7 @@ class threader ( threading.Thread ):
 			connection.commit()
 		except:
 			pass
-	def queue_links(self, links, cid, curdepth):
+	def queue_links(self, url, links, cid, curdepth):
 		if curdepth < crawldepth:
 			# Read the links and inser them into the queue
 			for link in (links.pop(0) for _ in xrange(len(links))):
