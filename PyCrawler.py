@@ -32,9 +32,10 @@ else:
 connection = sqlite.connect(db)
 cursor = connection.cursor()
 cursor.execute('CREATE TABLE IF NOT EXISTS crawl_index (id INTEGER, parent INTEGER, url VARCHAR(256), title VARCHAR(256), keywords VARCHAR(256) )')
-cursor.execute('CREATE TABLE IF NOT EXISTS queue (id INTEGER PRIMARY KEY, parent INTEGER, url VARCHAR(256) PRIMARY KEY )')
-cursor.execute('CREATE TABLE IF NOT EXISTS status ( s INTEGER, t TIMESTAMP )')
+cursor.execute('CREATE TABLE IF NOT EXISTS queue (id INTEGER PRIMARY KEY, parent INTEGER, depth INTEGER, url VARCHAR(256) PRIMARY KEY )')
+cursor.execute('CREATE TABLE IF NOT EXISTS status ( s INTEGER, t TEXT )')
 connection.commit()
+
 """
 # Check for a start point
 if len(sys.argv) < 2:
@@ -50,11 +51,20 @@ else:
 			connection.commit()
 	except:
 		pass
-"""		
+"""	
+
 # Compile keyword and link regex expressions
 keywordregex = re.compile('<meta\sname=["\']keywords["\']\scontent=["\'](.*?)["\']\s/>')
 linkregex = re.compile('<a\s*href=[\'|"](.*?)[\'"].*?>')
 crawled = []
+
+# set crawling status and stick starting url into the queue
+cursor.execute("INSERT INTO status VALUES ((?), (?))", (1, "datetime('now')"))
+cursor.execute("INSERT INTO queue VALUES ((?), (?), (?))", (None, 0, 0, staturl))
+connection.commit()
+
+
+# insert starting url into queue
 
 class threader ( threading.Thread ):
 	# Main run method to run
@@ -64,28 +74,42 @@ class threader ( threading.Thread ):
 				# Get the first item from the queue
 				cursor.execute("SELECT * FROM queue LIMIT 1")
 				crawling = cursor.fetchone()
-				crawling = crawling[0]
 				# Remove the item from the queue
-				cursor.execute("DELETE FROM queue WHERE url = (?)", (crawling, ))
+				cursor.execute("DELETE FROM queue WHERE id = (?)", (crawling[0], ))
 				connection.commit()
 				print crawling
 			except KeyError:
 				raise StopIteration
+			
+			# if theres nothing in the que, then set the status to done and exit
+			if crawling == None:
+				cursor.execute("INSERT INTO status VALUES ((?), (?))", (0, "datetime('now')"))
+				connection.commit()
+				sys.exit("Done!")
 			# Crawl the link
 			self.crawl(crawling)
+		
 			
 	def crawl(self, crawling):
+		# crawler id
+		cid = crawling[0]
+		# parent id. 0 if start url
+		pid = crawling[1]
+		# current depth
+		curdepth = crawling[2]
+		# crawling urL
+		curl = crawling[3]
 		# Split the link into its sections
-		url = urlparse.urlparse(crawling)
+		url = urlparse.urlparse(curl)
 		try:
 			# Add the link to the already crawled list
-			crawled.append(crawling)
+			crawled.append(curl)
 		except MemoryError:
 			# If the crawled array is too big, deleted it and start over
 			del crawled[:]
 		try:
 			# Load the link
-			response = urllib2.urlopen(crawling)
+			response = urllib2.urlopen(curl)
 		except:
 			# If it doesn't load, kill the function
 			return
@@ -96,26 +120,6 @@ class threader ( threading.Thread ):
 		soup = BeautifulSoup(msg)
 		# find the title
 		title = soup.find('title' limit=1)
-		# Find the title of the page
-		#startPos = msg.find('<title>')
-		#if startPos != -1:
-		#	endPos = msg.find('</title>', startPos+7)
-		#	if endPos != -1:
-		#		title = msg[startPos+7:endPos]
-		# Get the keywords
-		
-		# Find the meta keywords tag
-		#metalist = soup.findall("meta")
-		#keywordsmeta = None
-		# search through all the meta tags for the keywords tag
-		#for meta in metalist:
-			# if "keywords" is in the string
-		#	if meta.find("keywords") != -1:
-		#		keywordsmeta = meta
-		#		break
-		#if keywordsmeta != None:
-		#	bs = BeautifulSoup(keywordsmeta)
-		#	bs.find(text=re.compile('content\=[\'|"].*?[\'|"]'))
 			
 		keywordlist = keywordregex.findall(msg)
 		if len(keywordlist) > 0:
@@ -128,29 +132,32 @@ class threader ( threading.Thread ):
 		keywordlist.replace("'", "\'")
 
 		# queue up the links
-		queue_links(links)
+		queue_links(links, cid, curdepth)
 
 		try:
 			# Put now crawled link into the db
-			cursor.execute("INSERT INTO crawl_index VALUES( (?), (?), (?) )", (crawling, title, keywordlist))
+			cursor.execute("INSERT INTO crawl_index VALUES( (?), (?), (?), (?), (?) )", (cid, pid, curl, title, keywordlist))
 			connection.commit()
 		except:
 			pass
-	def queue_links(links):
-		# Read the links and inser them into the queue
-		for link in (links.pop(0) for _ in xrange(len(links))):
-			if link.startswith('/'):
-				link = 'http://' + url[1] + link
-			elif link.startswith('#'):
-				link = 'http://' + url[1] + url[2] + link
-			elif not link.startswith('http'):
-				link = 'http://' + url[1] + '/' + link
-			if link.decode('utf-8') not in crawled:
-				try:
-					cursor.execute("INSERT INTO queue VALUES ( (?) )", (link, ))
-					connection.commit()
-				except:
-					continue
+	def queue_links(self, links, cid, curdepth):
+		if curdepth < crawldepth:
+			# Read the links and inser them into the queue
+			for link in (links.pop(0) for _ in xrange(len(links))):
+				if link.startswith('/'):
+					link = 'http://' + url[1] + link
+				elif link.startswith('#'):
+					link = 'http://' + url[1] + url[2] + link
+				elif not link.startswith('http'):
+					link = 'http://' + url[1] + '/' + link
+				if link.decode('utf-8') not in crawled:
+					try:
+						cursor.execute("INSERT INTO queue VALUES ( (?), (?), (?), (?) )", (None, cid, curdepth+1, link))
+						connection.commit()
+					except:
+						continue
+		else:
+			pass
 if __name__ == '__main__':
 	# Run main loop
 	threader().run()
