@@ -12,15 +12,32 @@ try:
 except ImportError:
 	print "Continuing without psyco JIT compilation!"
 
-# Connect to the db and create the tables if they don't already exist
-connection = sqlite.connect('crawl.db')
-cursor = connection.cursor()
-cursor.execute('CREATE TABLE IF NOT EXISTS crawl_index ( url VARCHAR(256) PRIMARY KEY, title VARCHAR(256), keywords VARCHAR(256) )')
-cursor.execute('CREATE TABLE IF NOT EXISTS queue ( url VARCHAR(256) PRIMARY KEY )')
-connection.commit()
+"""
+The program should take 3 arguments
+1) database file name
+2) start url
+3) crawl depth 
+Start out by checking to see if the args are there and
+set them to their variables
+"""
+if len(sys.argv) < 4:
+	sys.exit("Not enough arguments!")
+else:
+	dbname = sys.argv[1]
+	starturl = sys.argv[2]
+	crawldepth = sys.argv[3]
 
+
+# Connect to the db and create the tables if they don't already exist
+connection = sqlite.connect(db)
+cursor = connection.cursor()
+cursor.execute('CREATE TABLE IF NOT EXISTS crawl_index (id INTEGER, parent INTEGER, url VARCHAR(256), title VARCHAR(256), keywords VARCHAR(256) )')
+cursor.execute('CREATE TABLE IF NOT EXISTS queue (id INTEGER PRIMARY KEY, parent INTEGER, url VARCHAR(256) PRIMARY KEY )')
+cursor.execute('CREATE TABLE IF NOT EXISTS status ( s INTEGER, t TIMESTAMP )')
+connection.commit()
+"""
 # Check for a start point
-if len(argv) < 2:
+if len(sys.argv) < 2:
 	print "No starting point! Checking existing queue"
 	cursor.execute("SELECT * FROM queue LIMIT 1")
 	c = cursor.fetchone()
@@ -33,7 +50,7 @@ else:
 			connection.commit()
 	except:
 		pass
-		
+"""		
 # Compile keyword and link regex expressions
 keywordregex = re.compile('<meta\sname=["\']keywords["\']\scontent=["\'](.*?)["\']\s/>')
 linkregex = re.compile('<a\s*href=[\'|"](.*?)[\'"].*?>')
