@@ -12,20 +12,22 @@ except ImportError:
 	print "Continuing without psyco JIT compilation!"
 
 """
-The program should take 3 arguments
+The program should take arguments
 1) database file name
 2) start url
 3) crawl depth 
 Start out by checking to see if the args are there and
 set them to their variables
 """
-if len(sys.argv) < 4:
+if len(sys.argv) < 5:
 	sys.exit("Not enough arguments!")
 else:
 	dbname = sys.argv[1]
 	starturl = sys.argv[2]
 	crawldepth = int(sys.argv[3])
 
+# urlparse the start url
+surlparsed = urlparse.urlparse(starturl)
 
 # Connect to the db and create the tables if they don't already exist
 connection = sqlite.connect(dbname)
@@ -34,23 +36,6 @@ cursor.execute('CREATE TABLE IF NOT EXISTS crawl_index (id INTEGER, parent INTEG
 cursor.execute('CREATE TABLE IF NOT EXISTS queue (id INTEGER PRIMARY KEY, parent INTEGER, depth INTEGER, url VARCHAR(256))')
 cursor.execute('CREATE TABLE IF NOT EXISTS status ( s INTEGER, t TEXT )')
 connection.commit()
-
-"""
-# Check for a start point
-if len(sys.argv) < 2:
-	print "No starting point! Checking existing queue"
-	cursor.execute("SELECT * FROM queue LIMIT 1")
-	c = cursor.fetchone()
-	if c == None:
-		sys.exit("ERROR: No start point! Exiting")
-else:
-	try:
-		if sys.argv[1]:
-			cursor.execute("INSERT INTO queue VALUES ( (?) )", (sys.argv[1], ))
-			connection.commit()
-	except:
-		pass
-"""	
 
 # Compile keyword and link regex expressions
 keywordregex = re.compile('<meta\sname=["\']keywords["\']\scontent=["\'](.*?)["\']\s/>')
@@ -112,11 +97,12 @@ class threader ( threading.Thread ):
 			# Load the link
 			response = urllib2.urlopen(curl)
 		except:
-			# If it doesn't load, kill the function
+			# If it doesn't load, skip this url
 			return
 		# Read response
 		msg = response.read()
 		
+		# Find what's between the title tags
 		startPos = msg.find('<title>')
 		if startPos != -1:
 			endPos = msg.find('</title>', startPos+7)
@@ -142,13 +128,14 @@ class threader ( threading.Thread ):
 	def queue_links(self, url, links, cid, curdepth):
 		if curdepth < crawldepth:
 			# Read the links and inser them into the queue
-			for link in (links.pop(0) for _ in xrange(len(links))):
+			for link in links:
 				if link.startswith('/'):
 					link = 'http://' + url[1] + link
 				elif link.startswith('#'):
 					link = 'http://' + url[1] + url[2] + link
 				elif not link.startswith('http'):
 					link = 'http://' + url[1] + '/' + link
+				
 				if link.decode('utf-8') not in crawled:
 					try:
 						cursor.execute("INSERT INTO queue VALUES ( (?), (?), (?), (?) )", (None, cid, curdepth+1, link))
