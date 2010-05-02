@@ -19,7 +19,7 @@ The program should take arguments
 Start out by checking to see if the args are there and
 set them to their variables
 """
-if len(sys.argv) < 5:
+if len(sys.argv) < 4:
 	sys.exit("Not enough arguments!")
 else:
 	dbname = sys.argv[1]
