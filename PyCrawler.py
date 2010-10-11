@@ -4,6 +4,7 @@ import urllib2
 import urlparse
 import threading
 import sqlite3 as sqlite
+import robotparser
 # Try to import psyco for JIT compilation
 try:
 	import psyco
@@ -16,6 +17,7 @@ The program should take arguments
 1) database file name
 2) start url
 3) crawl depth 
+4) verbose (optional)
 Start out by checking to see if the args are there and
 set them to their variables
 """
@@ -26,7 +28,7 @@ else:
 	starturl = sys.argv[2]
 	crawldepth = int(sys.argv[3])
 if len(sys.argv) == 5:
-	if (sys.argv[4].uppercase == "TRUE"):
+	if (sys.argv[4].upper() == "TRUE"):
 		verbose = True
 	else:
 		verbose = False
@@ -61,6 +63,10 @@ connection.commit()
 # insert starting url into queue
 
 class threader ( threading.Thread ):
+	
+	# Parser for robots.txt that helps determine if we are allowed to fetch a url
+	rp = robotparser.RobotFileParser()
+	
 	"""
 	run()
 	Args:
@@ -78,7 +84,7 @@ class threader ( threading.Thread ):
 				cursor.execute("DELETE FROM queue WHERE id = (?)", (crawling[0], ))
 				connection.commit()
 				if verbose:
-					print crawling
+					print crawling[3]
 			except KeyError:
 				raise StopIteration
 			except:
@@ -111,6 +117,20 @@ class threader ( threading.Thread ):
 		curl = crawling[3]
 		# Split the link into its sections
 		url = urlparse.urlparse(curl)
+		
+		try:
+			# Have our robot parser grab the robots.txt file and read it
+			self.rp.set_url('http://' + url[1] + '/robots.txt')
+			self.rp.read()
+		
+			# If we're not allowed to open a url, return the function to skip it
+			if not self.rp.can_fetch('PyCrawler', curl):
+				if verbose:
+					print curl + " not allowed by robots.txt"
+				return
+		except:
+			pass
+			
 		try:
 			# Add the link to the already crawled list
 			crawled.append(curl)
@@ -122,15 +142,13 @@ class threader ( threading.Thread ):
 			request = urllib2.Request(curl)
 			# Add user-agent header to the request
 			request.add_header("User-Agent", "PyCrawler")
-			# Build the url opener, open the link and read it into response
+			# Build the url opener, open the link and read it into msg
 			opener = urllib2.build_opener()
-			response = opener.open(request).read()
+			msg = opener.open(request).read()
 			
 		except:
 			# If it doesn't load, skip this url
 			return
-		# Read response
-		msg = response.read()
 		
 		# Find what's between the title tags
 		startPos = msg.find('<title>')
@@ -161,10 +179,14 @@ class threader ( threading.Thread ):
 		if curdepth < crawldepth:
 			# Read the links and inser them into the queue
 			for link in links:
+				cursor.execute("SELECT url FROM queue WHERE url=?", [link])
+				for row in cursor:
+					if row[0].decode('utf-8') == url:
+						continue
 				if link.startswith('/'):
 					link = 'http://' + url[1] + link
 				elif link.startswith('#'):
-					link = 'http://' + url[1] + url[2] + link
+					continue
 				elif not link.startswith('http'):
 					link = 'http://' + url[1] + '/' + link
 				
