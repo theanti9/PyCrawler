@@ -32,7 +32,7 @@ surlparsed = urlparse.urlparse(starturl)
 # Connect to the db and create the tables if they don't already exist
 connection = sqlite.connect(dbname)
 cursor = connection.cursor()
-cursor.execute('CREATE TABLE IF NOT EXISTS crawl_index (id INTEGER, parent INTEGER, url VARCHAR(256), title VARCHAR(256), keywords VARCHAR(256) )')
+cursor.execute('CREATE TABLE IF NOT EXISTS crawl_index (crawlid INTEGER, parentid INTEGER, url VARCHAR(256), title VARCHAR(256), keywords VARCHAR(256) )')
 cursor.execute('CREATE TABLE IF NOT EXISTS queue (id INTEGER PRIMARY KEY, parent INTEGER, depth INTEGER, url VARCHAR(256))')
 cursor.execute('CREATE TABLE IF NOT EXISTS status ( s INTEGER, t TEXT )')
 connection.commit()
@@ -69,7 +69,7 @@ class threader ( threading.Thread ):
 			
 			# if theres nothing in the que, then set the status to done and exit
 			if crawling == None:
-				cursor.execute("INSERT INTO status VALUES ((?), (?))", (0, "datetime('now')"))
+				cursor.execute("INSERT INTO status VALUES ((?), datetime('now'))", (0,))
 				connection.commit()
 				sys.exit("Done!")
 			# Crawl the link
@@ -95,7 +95,11 @@ class threader ( threading.Thread ):
 			del crawled[:]
 		try:
 			# Load the link
-			response = urllib2.urlopen(curl)
+			request = urllib2.Request(curl)
+			request.add_header("User-Agent", "PyCrawler")
+			opener = urllib2.build_opener()
+			response = opener.open(request).read()
+			
 		except:
 			# If it doesn't load, skip this url
 			return
