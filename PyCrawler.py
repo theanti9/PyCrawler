@@ -25,15 +25,25 @@ else:
 	dbname = sys.argv[1]
 	starturl = sys.argv[2]
 	crawldepth = int(sys.argv[3])
-
+if len(sys.argv) == 5:
+	if (sys.argv[4].uppercase == "TRUE"):
+		verbose = True
+	else:
+		verbose = False
+else:
+	verbose = False
 # urlparse the start url
 surlparsed = urlparse.urlparse(starturl)
 
 # Connect to the db and create the tables if they don't already exist
 connection = sqlite.connect(dbname)
 cursor = connection.cursor()
+# crawl_index: holds all the information of the urls that have been crawled
 cursor.execute('CREATE TABLE IF NOT EXISTS crawl_index (crawlid INTEGER, parentid INTEGER, url VARCHAR(256), title VARCHAR(256), keywords VARCHAR(256) )')
+# queue: this should be obvious
 cursor.execute('CREATE TABLE IF NOT EXISTS queue (id INTEGER PRIMARY KEY, parent INTEGER, depth INTEGER, url VARCHAR(256))')
+# status: Contains a record of when crawling was started and stopped. 
+# Mostly in place for a future application to watch the crawl interactively.
 cursor.execute('CREATE TABLE IF NOT EXISTS status ( s INTEGER, t TEXT )')
 connection.commit()
 
@@ -51,7 +61,13 @@ connection.commit()
 # insert starting url into queue
 
 class threader ( threading.Thread ):
-	# Main run method to run
+	"""
+	run()
+	Args:
+		none
+	the run() method contains the main loop of the program. Each iteration takes the url
+	at the top of the queue and starts the crawl of it. 
+	"""
 	def run(self):
 		while 1:
 			try:
@@ -61,7 +77,8 @@ class threader ( threading.Thread ):
 				# Remove the item from the queue
 				cursor.execute("DELETE FROM queue WHERE id = (?)", (crawling[0], ))
 				connection.commit()
-				print crawling
+				if verbose:
+					print crawling
 			except KeyError:
 				raise StopIteration
 			except:
@@ -75,7 +92,14 @@ class threader ( threading.Thread ):
 			# Crawl the link
 			self.crawl(crawling)
 		
-			
+	"""
+	crawl()
+	Args:
+		crawling: this should be a url
+	
+	crawl() opens the page at the "crawling" url, parses it and puts it into the databes.
+	It looks for the page title, keywords, and links.
+	"""
 	def crawl(self, crawling):
 		# crawler id
 		cid = crawling[0]
@@ -94,9 +118,11 @@ class threader ( threading.Thread ):
 			# If the crawled array is too big, deleted it and start over
 			del crawled[:]
 		try:
-			# Load the link
+			# Create a Request object
 			request = urllib2.Request(curl)
+			# Add user-agent header to the request
 			request.add_header("User-Agent", "PyCrawler")
+			# Build the url opener, open the link and read it into response
 			opener = urllib2.build_opener()
 			response = opener.open(request).read()
 			
@@ -129,6 +155,8 @@ class threader ( threading.Thread ):
 			connection.commit()
 		except:
 			pass
+			
+			
 	def queue_links(self, url, links, cid, curdepth):
 		if curdepth < crawldepth:
 			# Read the links and inser them into the queue
