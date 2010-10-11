@@ -1,0 +1,10 @@
+PyCrawler is very simple to use. It takes 4 arguments:
+
+1) database file name: The file that that will be used to store information as a sqlite database. If the filename given does not exist, it will be created.
+
+2) start url: Crawlers need a place to start! This should be a valid url.
+   ex. http://www.mysite.com/
+
+3) crawl depth: This should be the number of pages deep the crawler should follow from the starting url before backing out.
+
+4) verbose (optional): If you want PyCrawler to spit out the urls it is looking at, this should be "true" if it is missing, or has any other value, it will be ignored and considered false.
