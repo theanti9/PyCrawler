@@ -157,11 +157,15 @@ class threader ( threading.Thread ):
 			if endPos != -1:
 				title = msg[startPos+7:endPos]
 			
+		# Start keywords list with whats in the keywords meta tag if there is one
 		keywordlist = keywordregex.findall(msg)
 		if len(keywordlist) > 0:
 			keywordlist = keywordlist[0]
 		else:
 			keywordlist = ""
+			
+		
+			
 		# Get the links
 		links = linkregex.findall(msg)
 		# queue up the links
@@ -188,7 +192,7 @@ class threader ( threading.Thread ):
 				elif link.startswith('#'):
 					continue
 				elif not link.startswith('http'):
-					link = 'http://' + url[1] + '/' + link
+					link = urlparse.urljoin(url,link)
 				
 				if link.decode('utf-8') not in crawled:
 					try:
