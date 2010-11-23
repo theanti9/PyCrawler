@@ -192,7 +192,7 @@ class threader ( threading.Thread ):
 				elif link.startswith('#'):
 					continue
 				elif not link.startswith('http'):
-					link = urlparse.urljoin(url,link)
+					link = urlparse.urljoin(urlparse.urlunparse(url),link)
 				
 				if link.decode('utf-8') not in crawled:
 					try:
