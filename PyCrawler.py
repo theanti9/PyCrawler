@@ -51,7 +51,7 @@ connection.commit()
 
 # Compile keyword and link regex expressions
 keywordregex = re.compile('<meta\sname=["\']keywords["\']\scontent=["\'](.*?)["\']\s/>')
-linkregex = re.compile('<a\s*href=[\'|"](.*?)[\'"].*?>')
+linkregex = re.compile('<a.*\shref=[\'"](.*?)[\'"].*?>')
 crawled = []
 
 # set crawling status and stick starting url into the queue
