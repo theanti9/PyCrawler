@@ -6,11 +6,7 @@ import threading
 import sqlite3 as sqlite
 import robotparser
 # Try to import psyco for JIT compilation
-try:
-	import psyco
-	psyco.full()
-except ImportError:
-	print "Continuing without psyco JIT compilation!"
+
 
 """
 The program should take arguments
@@ -203,5 +199,10 @@ class threader ( threading.Thread ):
 		else:
 			pass
 if __name__ == '__main__':
+	try:
+		import psyco
+		psyco.full()
+	except ImportError:
+		print "Continuing without psyco JIT compilation!"
 	# Run main loop
 	threader().run()
