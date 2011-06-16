@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import sys
 import re
 import urllib2
@@ -13,7 +14,8 @@ The program should take arguments
 1) database file name
 2) start url
 3) crawl depth 
-4) verbose (optional)
+4) domains to limit to, regex (optional)
+5) verbose (optional)
 Start out by checking to see if the args are there and
 set them to their variables
 """
@@ -23,12 +25,15 @@ else:
 	dbname = sys.argv[1]
 	starturl = sys.argv[2]
 	crawldepth = int(sys.argv[3])
-if len(sys.argv) == 5:
-	if (sys.argv[4].upper() == "TRUE"):
+if len(sys.argv) >= 5:
+	domains = sys.argv[4]
+if len(sys.argv) == 6:
+	if (sys.argv[5].upper() == "TRUE"):
 		verbose = True
 	else:
 		verbose = False
 else:
+	domains = False
 	verbose = False
 # urlparse the start url
 surlparsed = urlparse.urlparse(starturl)
@@ -37,7 +42,7 @@ surlparsed = urlparse.urlparse(starturl)
 connection = sqlite.connect(dbname)
 cursor = connection.cursor()
 # crawl_index: holds all the information of the urls that have been crawled
-cursor.execute('CREATE TABLE IF NOT EXISTS crawl_index (crawlid INTEGER, parentid INTEGER, url VARCHAR(256), title VARCHAR(256), keywords VARCHAR(256) )')
+cursor.execute('CREATE TABLE IF NOT EXISTS crawl_index (crawlid INTEGER, parentid INTEGER, url VARCHAR(256), title VARCHAR(256), keywords VARCHAR(256), status INTEGER )')
 # queue: this should be obvious
 cursor.execute('CREATE TABLE IF NOT EXISTS queue (id INTEGER PRIMARY KEY, parent INTEGER, depth INTEGER, url VARCHAR(256))')
 # status: Contains a record of when crawling was started and stopped. 
@@ -48,6 +53,10 @@ connection.commit()
 # Compile keyword and link regex expressions
 keywordregex = re.compile('<meta\sname=["\']keywords["\']\scontent=["\'](.*?)["\']\s/>')
 linkregex = re.compile('<a.*\shref=[\'"](.*?)[\'"].*?>')
+if domains:
+	domainregex = re.compile(domains)
+else:
+	domainregex = False
 crawled = []
 
 # set crawling status and stick starting url into the queue
@@ -99,7 +108,7 @@ class threader ( threading.Thread ):
 	Args:
 		crawling: this should be a url
 	
-	crawl() opens the page at the "crawling" url, parses it and puts it into the databes.
+	crawl() opens the page at the "crawling" url, parses it and puts it into the database.
 	It looks for the page title, keywords, and links.
 	"""
 	def crawl(self, crawling):
@@ -111,6 +120,8 @@ class threader ( threading.Thread ):
 		curdepth = crawling[2]
 		# crawling urL
 		curl = crawling[3]
+		if domainregex and not domainregex.search(curl):
+			return
 		# Split the link into its sections
 		url = urlparse.urlparse(curl)
 		
@@ -140,10 +151,21 @@ class threader ( threading.Thread ):
 			request.add_header("User-Agent", "PyCrawler")
 			# Build the url opener, open the link and read it into msg
 			opener = urllib2.build_opener()
-			msg = opener.open(request).read()
+			f = opener.open(request)
+			msg = f.read()
+			# put meta data in info
+			info = f.info() 
+		
 			
-		except:
+		except urllib2.URLError, e:
 			# If it doesn't load, skip this url
+			#print e.code
+			try: 
+				cursor.execute("INSERT INTO crawl_index VALUES( (?), (?), (?), (?), (?), (?) )", (cid, pid, curl, '', '', e.code))
+				connection.commit
+			except:
+				pass
+
 			return
 		
 		# Find what's between the title tags
@@ -169,7 +191,7 @@ class threader ( threading.Thread ):
 
 		try:
 			# Put now crawled link into the db
-			cursor.execute("INSERT INTO crawl_index VALUES( (?), (?), (?), (?), (?) )", (cid, pid, curl, title, keywordlist))
+			cursor.execute("INSERT INTO crawl_index VALUES( (?), (?), (?), (?), (?), (?) )", (cid, pid, curl, title, keywordlist, 200))
 			connection.commit()
 		except:
 			pass
