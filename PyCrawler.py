@@ -52,7 +52,7 @@ connection.commit()
 
 # Compile keyword and link regex expressions
 keywordregex = re.compile('<meta\sname=["\']keywords["\']\scontent=["\'](.*?)["\']\s/>')
-linkregex = re.compile('<a.*\shref=[\'"](.*?)[\'"].*?>')
+linkregex = re.compile('<a\s(?:.*?\s)*?href=[\'"](.*?)[\'"].*?>')
 if domains:
 	domainregex = re.compile(domains)
 else:
