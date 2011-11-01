@@ -77,7 +77,6 @@ class CrawlerDb:
 			if not delres:
 				return False
 			# Return the row
-			print result
 			return result[0][1]
 		return False
 	

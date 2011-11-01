@@ -8,3 +8,9 @@ DATABASE_USER = ""				# Not used with sqlite
 DATABASE_PASS = ""				# Not used with sqlite
 
 VERBOSE = True
+
+# These values are for the text output colors.
+# List values are 0-255 RGB values, respectively.
+
+COLOR_SUCCESS = [0, 255, 0]		# Success Color (Green)
+COLOR_ERROR = [255, 0, 0]		# Error Color (Red)
