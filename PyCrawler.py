@@ -41,9 +41,12 @@ def crawl():
 		if url is False:
 			break
 		status = 0
+		req = urllib2.Request(str(url))
+		req.add_header('User-Agent', 'PyCrawler 0.2.0')
 		request = None
+
 		try:
-			request = urllib2.urlopen(str(url))
+			request = urllib2.urlopen(req)
 		except urllib2.URLError, e:
 			print e
 			print "Exception at url: %s" % url
