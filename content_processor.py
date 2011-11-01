@@ -95,8 +95,16 @@ class ContentProcessor:
 				l.append(self.text[i:j])
 				i = offset + j+1
 			#print "processing with %i threads" % len(l)
-			pool = Pool(processes=(len(l)))
-			self.keyword_dicts = pool.map(rankKeywords, l)
+			try:
+				pool = Pool(processes=(len(l)))
+				self.keyword_dicts = pool.map(rankKeywords, l)
+			except KeyboardInterrupt:
+				pool.terminate()
+				pool.join()
+				sys.exit()
+			else:
+				pool.close()
+				pool.join()
 			#print "processed, returned %i dicts" % len(self.keyword_dicts)
 		else:
 			self.keyword_dicts.append(rankKeywords(self.text))
