@@ -7,10 +7,8 @@ DATABASE_PORT = ""				# Port number as a string. Not used with sqlite
 DATABASE_USER = ""				# Not used with sqlite
 DATABASE_PASS = ""				# Not used with sqlite
 
+SQLITE_ROTATE_DATABASE_ON_STARTUP = True # Rotate the database to a new one on startup
+
 VERBOSE = True
 
-# These values are for the text output colors.
-# List values are 0-255 RGB values, respectively.
-
-COLOR_SUCCESS = [0, 255, 0]		# Success Color (Green)
-COLOR_ERROR = [255, 0, 0]		# Error Color (Red)
+USE_COLORS = True 				# Whether or not colors should be used when printing text

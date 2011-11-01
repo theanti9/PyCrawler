@@ -56,7 +56,7 @@ class CrawlerDb:
 			return False
 		if len(urls) == 0:
 			return True
-		args = [{'address':u} for u in urls]
+		args = [{'address':unicode(u)} for u in urls]
 		result = self.connection.execute(self.queue_table.insert(), args)
 		if result:
 			return True
@@ -81,7 +81,7 @@ class CrawlerDb:
 		return False
 	
 	def checkCrawled(self, url):
-		s =  select([self.crawl_table]).where(self.crawl_table.c.address == url)
+		s =  select([self.crawl_table]).where(self.crawl_table.c.address == unicode(url))
 		result = self.connection.execute(s)
 		if len(result.fetchall()) > 0:
 			result.close()
@@ -100,7 +100,7 @@ class CrawlerDb:
 		if not self.connected:
 			return False
 		# Add the page to the crawl table
-		result = self.connection.execute(self.crawl_table.insert().values(address=data['address'],http_status=data['status'],title=data['title'],size=data['size']))
+		result = self.connection.execute(self.crawl_table.insert().values(address=unicode(data['address']),http_status=data['status'],title=unicode(data['title']),size=data['size']))
 		if not result:
 			return False
 		# generate list of argument dictionaries for the insert many statement

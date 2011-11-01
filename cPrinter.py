@@ -2,10 +2,13 @@ import curses
 
 class Printer():
 
-	def __init__(self, COLOR_SUCCESS, COLOR_ERROR):
+	def __init__(self, USE_COLORS):
 		# Define our types
 		self.success = 0;
 		self.error = 1;
+		self.other = 2;
+
+		self.USE_COLORS = USE_COLORS
 
 		# Initialize environment
 		curses.setupterm()
@@ -16,19 +19,18 @@ class Printer():
 		#Get the normal attribute
 		self.COLOR_NORMAL = curses.tigetstr('sgr0')
 
-		# Initialize custom colors to the first two slots
-		curses.initscr()
-		curses.start_color()
-		curses.init_color(0, COLOR_SUCCESS[0], COLOR_SUCCESS[1], COLOR_SUCCESS[2])
-		curses.init_color(1, COLOR_ERROR[0], COLOR_ERROR[1], COLOR_ERROR[2])
-		curses.endwin()
-
 		# Get + Save the color sequences
-		self.COLOR_SUCCESS = curses.tparm(self.fcap, 0)
-		self.COLOR_ERROR = curses.tparm(self.fcap, 1)
+		self.COLOR_SUCCESS = curses.tparm(self.fcap, curses.COLOR_GREEN)
+		self.COLOR_ERROR = curses.tparm(self.fcap, curses.COLOR_RED)
+		self.COLOR_OTHER = curses.tparm(self.fcap, curses.COLOR_YELLOW)
 
 	def p(self, text, type):
-		if type == self.success:
-			print "%s%s%s" % (self.COLOR_SUCCESS, text, self.COLOR_NORMAL)
-		elif type == self.error:
-			print "%s%s%s" % (self.COLOR_SUCCESS, text, self.COLOR_NORMAL)
+		if self.USE_COLORS:
+			if type == self.success:
+				print "%s[*] %s%s" % (self.COLOR_SUCCESS, text, self.COLOR_NORMAL)
+			elif type == self.error:
+				print "%s[!] %s%s" % (self.COLOR_ERROR, text, self.COLOR_NORMAL)
+			elif type == self.other:
+				print "%s[.] %s%s" % (self.COLOR_OTHER, text, self.COLOR_NORMAL)
+		else:
+			print text

@@ -20,6 +20,7 @@ def rankKeywords(text):
 def stripPunctuation(text):
 	pattern = re.compile(r'[^\w\s]')
 	return pattern.sub('', text)
+
 class ContentProcessor:
 	
 	def __init__(self, url, status, text):
@@ -114,4 +115,7 @@ class ContentProcessor:
 		return queue
 
 	def getDataDict(self):
+		for k,v in self.keywords.items():
+			if v < 3:
+				del self.keywords[k]
 		return {"address":self.url, "title":self.title, "status":self.status, "size":self.size, "keywords":self.keywords}
