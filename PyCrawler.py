@@ -1,8 +1,9 @@
 from query import CrawlerDb
 from content_processor import ContentProcessor
-from settings import VERBOSE, USE_COLORS, DATABASE_ENGINE, DATABASE_NAME, SQLITE_ROTATE_DATABASE_ON_STARTUP
+from settings import LOGGING
 import sys, urlparse, urllib2, shutil, glob, robotparser
-import cPrinter
+import logging, logging.config
+import traceback
 
 # ===== Init stuff =====
 
@@ -13,14 +14,15 @@ cdb.connect()
 # content processor init
 processor = ContentProcessor(None, None, None)
 
-# get cprinter
-printer = cPrinter.Printer(USE_COLORS)
+# logging setup
+logging.config.dictConfig(LOGGING)
+logger = logging.getLogger("crawler_logger")
 
 # robot parser init
 robot = robotparser.RobotFileParser()
 
 if len(sys.argv) < 2:
-	printer.p("Error: No start url was passed", printer.other)
+	logger.info("Error: No start url was passed")
 	sys.exit()
 
 l = sys.argv[1:]
@@ -28,16 +30,16 @@ l = sys.argv[1:]
 cdb.enqueue(l)
 
 def crawl():
-	printer.p("starting...", printer.other)
+	logger.info("Starting (%s)..." % sys.argv[1])
 	while True:
 		url = cdb.dequeue()
 		u = urlparse.urlparse(url)
 		robot.set_url('http://'+u[1]+"/robots.txt")
-		if not robot.can_fetch('PyCrawler', url):
-			printer.p("Url disallowed by robots.txt: %s " % url, printer.other)
+		if not robot.can_fetch('PyCrawler', url.encode('ascii', 'replace')):
+			logger.warning("Url disallowed by robots.txt: %s " % url)
 			continue
 		if not url.startswith('http'):
-			printer.p("Unfollowable link found at %s " % url, printer.other)
+			logger.warning("Unfollowable link found at %s " % url)
 			continue
 
 		if cdb.checkCrawled(url):
@@ -45,13 +47,14 @@ def crawl():
 		if url is False:
 			break
 		status = 0
+		req = urllib2.Request(str(url))
+		req.add_header('User-Agent', 'PyCrawler 0.2.0')
 		request = None
+
 		try:
-			request = urllib2.urlopen(str(url))
+			request = urllib2.urlopen(req)
 		except urllib2.URLError, e:
-			printer.p(e.reason, printer.error)
-			printer.p("Exception at url: %s" % url, printer.error)
-			
+			logger.error("Exception at url: %s\n%s" % (url, e))
 			continue
 		except urllib2.HTTPError, e:
 			status = e.code
@@ -70,30 +73,23 @@ def crawl():
 		processor.setInfo(str(url), status, data)
 		add_queue = processor.process()
 		l = len(add_queue)
-		if VERBOSE:
-			printer.p("Got %s status from %s" % (status, url), printer.success)
-			printer.p("Found %i links" % l, printer.success)
+		logger.info("Got %s status from %s (Found %i links)" % (status, url, l))
 		if l > 0:
 			cdb.enqueue(add_queue)	
 		cdb.addPage(processor.getDataDict())
 		processor.reset()
 
-	printer.p("finishing...", printer.other)
+	logger.info("Finishing...")
 	cdb.close()
-	printer.p("done! goodbye!", printer.success)
+	logger.info("Done! Goodbye!")
 
 if __name__ == "__main__":
-	if DATABASE_ENGINE == "sqlite" and SQLITE_ROTATE_DATABASE_ON_STARTUP:
-		dbs = glob.glob("*.db*")
-		index = 1;
-		while("%s.db.%s" % (DATABASE_NAME, index) in dbs):
-			index += 1
-		shutil.copy2(dbs[len(dbs)-1], "%s.db.%s" % (DATABASE_NAME, index))
 	try:
 		crawl()
 	except KeyboardInterrupt:
-		printer.p("Stopping", printer.error)
+		logger.error("Stopping (KeyboardInterrupt)")
 		sys.exit()
 	except Exception, e:
-		printer.p("EXCEPTION: %s " % e, printer.error)
+		logger.error("EXCEPTION: %s " % e)
+		traceback.print_exc()
 	

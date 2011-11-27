@@ -1,8 +1,9 @@
+from multiprocessing import Pool
+import re, sys, logging
+
 from ready_queue import ready_queue
 
-from multiprocessing import Pool
-
-import re, sys
+logger = logging.getLogger("crawler_logger")
 
 def rankKeywords(text):
 	invalid_keywords = ['', ' ', "i", "a", "an", "and", "the", "for", "be", "to", "or", "too", "also"]
@@ -84,8 +85,20 @@ class ContentProcessor:
 					break
 				l.append(self.text[i:j])
 				i = offset + j+1
-			pool = Pool(processes=(len(l)))
-			self.keyword_dicts = pool.map(rankKeywords, l)
+			logger.debug("processing with %i threads" % len(l))
+			try:
+				if len(l) == 0:
+					return []
+				pool = Pool(processes=(len(l)))
+				self.keyword_dicts = pool.map(rankKeywords, l)
+			except KeyboardInterrupt:
+				pool.terminate()
+				pool.join()
+				sys.exit()
+			else:
+				pool.close()
+				pool.join()
+			logger.debug("processed, returned %i dicts" % len(self.keyword_dicts))
 		else:
 			self.keyword_dicts.append(rankKeywords(self.text))
 		return queue
