@@ -100,7 +100,10 @@ class CrawlerDb:
 		if not self.connected:
 			return False
 		# Add the page to the crawl table
-		result = self.connection.execute(self.crawl_table.insert().values(address=unicode(data['address']),http_status=data['status'],title=unicode(data['title']),size=data['size']))
+		try:
+			result = self.connection.execute(self.crawl_table.insert().values(address=unicode(data['address']),http_status=data['status'],title=unicode(data['title']),size=data['size']))
+		except UnicodeDecodeError:
+			return False
 		if not result:
 			return False
 		# generate list of argument dictionaries for the insert many statement
