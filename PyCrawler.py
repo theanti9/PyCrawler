@@ -1,7 +1,9 @@
 from query import CrawlerDb
 from content_processor import ContentProcessor
-from settings import VERBOSE
-import sys, urlparse, urllib2, robotparser
+from settings import LOGGING
+import sys, urlparse, urllib2, shutil, glob, robotparser
+import logging, logging.config
+import traceback
 
 # ===== Init stuff =====
 
@@ -12,11 +14,15 @@ cdb.connect()
 # content processor init
 processor = ContentProcessor(None, None, None)
 
+# logging setup
+logging.config.dictConfig(LOGGING)
+logger = logging.getLogger("crawler_logger")
+
 # robot parser init
 robot = robotparser.RobotFileParser()
 
 if len(sys.argv) < 2:
-	print "Error: No start url was passed"
+	logger.info("Error: No start url was passed")
 	sys.exit()
 
 l = sys.argv[1:]
@@ -24,16 +30,16 @@ l = sys.argv[1:]
 cdb.enqueue(l)
 
 def crawl():
-	print "starting..."
+	logger.info("Starting (%s)..." % sys.argv[1])
 	while True:
 		url = cdb.dequeue()
 		u = urlparse.urlparse(url)
 		robot.set_url('http://'+u[1]+"/robots.txt")
-		if not robot.can_fetch('PyCrawler', url):
-			print "Url disallowed by robots.txt: %s " % url
+		if not robot.can_fetch('PyCrawler', url.encode('ascii', 'replace')):
+			logger.warning("Url disallowed by robots.txt: %s " % url)
 			continue
 		if not url.startswith('http'):
-			print "Unfollowable link found at %s " % url
+			logger.warning("Unfollowable link found at %s " % url)
 			continue
 
 		if cdb.checkCrawled(url):
@@ -48,8 +54,7 @@ def crawl():
 		try:
 			request = urllib2.urlopen(req)
 		except urllib2.URLError, e:
-			print e
-			print "Exception at url: %s" % url
+			logger.error("Exception at url: %s\n%s" % (url, e))
 			continue
 		except urllib2.HTTPError, e:
 			status = e.code
@@ -65,25 +70,26 @@ def crawl():
 			if not cdb.checkCrawled(q):
 				add_queue.append(q)
 
+		processor.setInfo(str(url), status, data)
+		add_queue = processor.process()
 		l = len(add_queue)
-		if VERBOSE:
-			print "Got %s status from %s" % (status, url)
-			print "Found %i links" % l
+		logger.info("Got %s status from %s (Found %i links)" % (status, url, l))
 		if l > 0:
 			cdb.enqueue(add_queue)	
 		cdb.addPage(processor.getDataDict())
 		processor.reset()
 
-	print "finishing..."
+	logger.info("Finishing...")
 	cdb.close()
-	print "done! goodbye!"
+	logger.info("Done! Goodbye!")
 
 if __name__ == "__main__":
 	try:
 		crawl()
 	except KeyboardInterrupt:
-		print "Stopping"
+		logger.error("Stopping (KeyboardInterrupt)")
 		sys.exit()
 	except Exception, e:
-		print "EXCEPTION: %s " % e
+		logger.error("EXCEPTION: %s " % e)
+		traceback.print_exc()
 	
