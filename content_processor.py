@@ -21,7 +21,11 @@ def rankKeywords(text):
 
 def stripPunctuation(text):
 	pattern = re.compile(r'[^\w\s]')
-	return pattern.sub('', text)
+	return pattern.sub(' ', text)
+
+def stripScript(text):
+	pattern = re.compile(r'<script.*?\/script>')
+	return pattern.sub(' ', text)
 
 class ContentProcessor:
 	
@@ -77,7 +81,7 @@ class ContentProcessor:
 	def processBody(self):
 		queue = ready_queue(self.url, self.body)
 		#print "found %i links to queue" % len(queue)
-		self.text = stripPunctuation(self.remove_html_tags(self.body))
+		self.text = stripPunctuation(self.remove_html_tags(stripScript(self.body)))
 		if len(self.text) > 5000:
 			offset = 0
 			i = 0
