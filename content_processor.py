@@ -1,5 +1,5 @@
 from multiprocessing import Pool
-import re, sys, logging, string
+import re, sys, logging
 
 from ready_queue import ready_queue
 
@@ -9,21 +9,13 @@ def rankKeywords(text):
 	invalid_keywords = ['', ' ', "i", "a", "an", "and", "the", "for", "be", "to", "or", "too", "also"]
 	ranks = {}
 	text = text.split(' ')
-	exclude = set(string.punctuation)
 	for t in text:
-		#remove punctuation if attached to word
-		temp = t
-		t = ''
-		for i in range(len(temp)):
-			if(temp[i] not in exclude):
-				t += temp[i]
-		t = t.strip()
 		if t in invalid_keywords:
 			continue
 		if not ranks.has_key(t):
 			ranks[t] = 1
 		else:
-			ranks[t] += 1 
+			ranks[t] += 1
 	return ranks
 
 def stripPunctuation(text):
@@ -91,18 +83,13 @@ class ContentProcessor:
 			offset = 0
 			i = 0
 			l = []
-			cont = True
-			while cont:
-				#this divides the text into sets of 500 words
-				#set j to the index of the last letter of the 500th word
+			while True:
 				j = self.findnth(self.text[i:],' ',500)
-				#if only 500 words or less are left
+				offset += j
 				if j == -1:
-					cont = False
-				#Should append a string that contains 500 words for each loop(except the last loop) to l
-				#last loop should append a string with 500 words or less to l
-				l.append(self.text[i:i+j])
-				i += j+1
+					break
+				l.append(self.text[i:j])
+				i = offset + j+1
 			logger.debug("processing with %i threads" % len(l))
 			try:
 				if len(l) == 0:
