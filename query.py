@@ -56,7 +56,7 @@ class CrawlerDb:
 			return False
 		if len(urls) == 0:
 			return True
-		args = [{'address':unicode(u)} for u in urls]
+		args = [{'address':u.decode("utf8")} for u in urls]
 		result = self.connection.execute(self.queue_table.insert(), args)
 		if result:
 			return True
@@ -81,7 +81,7 @@ class CrawlerDb:
 		return False
 	
 	def checkCrawled(self, url):
-		s =  select([self.crawl_table]).where(self.crawl_table.c.address == unicode(url))
+		s =  select([self.crawl_table]).where(self.crawl_table.c.address == url.decode("utf8"))
 		result = self.connection.execute(s)
 		if len(result.fetchall()) > 0:
 			result.close()
