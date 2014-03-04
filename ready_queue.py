@@ -7,6 +7,9 @@ def ready_queue(address, html):
 	links = linkregex.findall(html)
 	queue = []
 	for link in links:
+		#no anchors i.e. video#title
+		if "#" in link:
+			continue
 		if link.startswith("/"):
 			queue.append('http://'+url[1]+link)
 		elif link.startswith("http") or link.startswith("https"):
